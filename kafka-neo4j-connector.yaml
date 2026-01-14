@@ -1,0 +1,141 @@
+# 1) ConfigMap: Neo4j sink connector configuration with correct password
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neo4j-sink-config
+data:
+  neo4j-sink-config.json: |
+    {
+      "connector.class": "streams.kafka.connect.sink.Neo4jSinkConnector",
+      "errors.retry.timeout": "-1",
+      "errors.log.include.messages": "true",
+      "neo4j.authentication.basic.password": "processingpipeline",
+      "topics": "nyc_taxicab_data",
+      "neo4j.server.uri": "bolt://neo4j-service:7687",
+      "neo4j.topic.cypher.nyc_taxicab_data": "MERGE (p:Location {name: toInteger(event.PULocationID)}) MERGE (d:Location {name: toInteger(event.DOLocationID)}) MERGE (p)-[:TRIP {distance: toFloat(event.trip_distance), fare: toFloat(event.fare_amount)}]->(d)",
+      "errors.retry.delay.max.ms": "1000",
+      "key.converter.schemas.enable": "false",
+      "value.converter.schemas.enable": "false",
+      "neo4j.authentication.basic.username": "neo4j",
+      "name": "Neo4jSinkConnectorJSONString",
+      "errors.tolerance": "all",
+      "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+      "errors.log.enable": "true",
+      "key.converter": "org.apache.kafka.connect.json.JsonConverter"
+    }
+
+---
+# 2) Kafka Connect deployment (worker) using assignment image
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-neo4j-connector
+  labels:
+    app: kafka-neo4j-connector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-neo4j-connector
+  template:
+    metadata:
+      labels:
+        app: kafka-neo4j-connector
+    spec:
+      containers:
+        - name: kafka-neo4j-connector
+          image: veedata/kafka-neo4j-connect:latest2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8083   # Kafka Connect REST API
+          env:
+            # Kafka Connect worker config
+            - name: CONNECT_BOOTSTRAP_SERVERS
+              value: "kafka-service:29092"
+            - name: CONNECT_REST_PORT
+              value: "8083"
+            - name: CONNECT_GROUP_ID
+              value: "neo4j-connect-group"
+
+            - name: CONNECT_CONFIG_STORAGE_TOPIC
+              value: "connect-configs"
+            - name: CONNECT_OFFSET_STORAGE_TOPIC
+              value: "connect-offsets"
+            - name: CONNECT_STATUS_STORAGE_TOPIC
+              value: "connect-status"
+
+            - name: CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR
+              value: "1"
+            - name: CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR
+              value: "1"
+            - name: CONNECT_STATUS_STORAGE_REPLICATION_FACTOR
+              value: "1"
+
+            - name: CONNECT_KEY_CONVERTER
+              value: "org.apache.kafka.connect.storage.StringConverter"
+            - name: CONNECT_VALUE_CONVERTER
+              value: "org.apache.kafka.connect.json.JsonConverter"
+            - name: CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE
+              value: "false"
+
+---
+# 3) Service to expose Kafka Connect REST inside the cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-neo4j-connect-service
+  labels:
+    app: kafka-neo4j-connector
+spec:
+  selector:
+    app: kafka-neo4j-connector
+  ports:
+    - name: rest
+      protocol: TCP
+      port: 8083
+      targetPort: 8083
+  type: ClusterIP
+
+---
+# 4) Job: wait for Connect, then UPDATE the existing connector's config with the correct password
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: neo4j-sink-connector-job
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: register-neo4j-sink
+          image: curlimages/curl:latest
+          volumeMounts:
+            - name: sink-config
+              mountPath: /config
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for Kafka Connect REST API..."
+              for i in $(seq 1 30); do
+                if curl -s http://kafka-neo4j-connect-service:8083/connectors > /dev/null; then
+                  echo "Kafka Connect is up"
+                  break
+                fi
+                echo "Still waiting for Connect..."
+                sleep 5
+              done
+
+              echo "Updating Neo4j sink connector config..."
+              # The custom image creates a connector named Neo4jSinkConnectorJSONString by default.
+              # We overwrite its config with correct Neo4j credentials and topic settings.
+              curl -s -X PUT -H "Content-Type: application/json" \
+                   --data @/config/neo4j-sink-config.json \
+                   http://kafka-neo4j-connect-service:8083/connectors/Neo4jSinkConnectorJSONString/config
+
+              echo "Neo4j sink connector config update done."
+      volumes:
+        - name: sink-config
+          configMap:
+            name: neo4j-sink-config
+            

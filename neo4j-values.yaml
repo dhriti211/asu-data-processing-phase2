@@ -1,0 +1,26 @@
+# neo4j-values.yaml
+# This file configures the Neo4j Helm chart for standalone mode.
+
+neo4j:
+  name: neo4j-standalone
+  edition: "community"
+
+  # REQUIRED: initial password for "neo4j" user
+  password: "processingpipeline"
+
+  # Enable plugins (Graph Data Science)
+env:
+  NEO4J_PLUGINS: '["graph-data-science"]'
+
+config:
+  dbms.security.procedures.unrestricted: "gds.*"
+  dbms.security.procedures.allowlist: "gds.*"
+
+volumes:
+  data:
+    mode: "defaultStorageClass"
+
+resources:
+  cpu: "1"
+  memory: "2Gi"
+
