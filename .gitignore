@@ -1,0 +1,21 @@
+﻿# Ignore large/parquet and archives
+*.parquet
+*.zip
+*.tar.gz
+*.tgz
+
+# Python
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Kubernetes / Helm local artifacts
+*.tgz
