@@ -1,146 +1,68 @@
-\# Data Processing at Scale — Phase 2  
-
-\*\*Streaming Data Pipeline with Kafka, Neo4j \& Kubernetes\*\*
-
-
+# Data Processing at Scale — Phase 2  
+**Streaming Data Pipeline with Kafka, Neo4j & Kubernetes**
 
 ---
 
+## Overview
+This project implements a **distributed, streaming data pipeline** using **Apache Kafka**, **Neo4j**, and **Kubernetes (Minikube)**.
 
-
-\## Overview
-
-This project implements a \*\*distributed, streaming data pipeline\*\* using \*\*Apache Kafka\*\*, \*\*Neo4j\*\*, and \*\*Kubernetes (Minikube)\*\*.
-
-
-
-Taxi trip data is streamed in real time via Kafka, consumed through a Kafka–Neo4j connector, and persisted into a Neo4j graph database where graph analytics can be performed.
-
-
-
-The system is fully containerized and orchestrated using Kubernetes, demonstrating end-to-end data ingestion, processing, and storage in a cloud-native environment.
-
-
+NYC Taxi trip data is streamed in real time via Kafka, consumed through a Kafka–Neo4j connector, and persisted into a Neo4j graph database where graph analytics can be performed. The system is containerized and orchestrated with Kubernetes, demonstrating end-to-end ingestion, processing, and storage in a cloud-native environment.
 
 ---
 
-
-
-\## 🎯 Project Objectives
-
-\- Design a \*\*real-time streaming pipeline\*\* using Kafka
-
-\- Deploy and manage services using \*\*Kubernetes\*\*
-
-\- Integrate Kafka with \*\*Neo4j Graph Database\*\*
-
-\- Process and store streaming data as a \*\*graph\*\*
-
-\- Execute graph analytics (PageRank, BFS) on ingested data
-
-\- Build a \*\*reproducible distributed system\*\* suitable for large-scale data processing
-
-
+## 🎯 Project Objectives
+- Build a **real-time streaming pipeline** using Kafka.
+- Deploy and manage services on **Kubernetes (Minikube)**.
+- Integrate Kafka with a **Neo4j graph database**.
+- Store streaming data as a **graph** for downstream analysis.
+- Enable **graph algorithms** (PageRank, BFS) on ingested data.
+- Create a **reproducible distributed system** that mirrors production data workflows.
 
 ---
 
-
-
-\## 🧠 What This Project Does
-
-\- Streams NYC Taxi trip records using a Kafka producer
-
-\- Uses \*\*Zookeeper + Kafka\*\* deployed on Kubernetes
-
-\- Consumes data via a \*\*Kafka–Neo4j Connector\*\*
-
-\- Stores trips as relationships between location nodes in Neo4j
-
-\- Enables graph algorithms such as:
-
-&nbsp; - \*\*PageRank\*\* (identify influential locations)
-
-&nbsp; - \*\*Breadth-First Search\*\* (graph traversal and reachability)
-
-\- Validates the entire pipeline using an automated test harness
-
-
+## 🧠 What This Project Does
+- Streams NYC Taxi trip records using a **Python Kafka producer**.
+- Runs **Zookeeper** and **Kafka** as Kubernetes workloads.
+- Uses a **Kafka–Neo4j sink connector** to push data into Neo4j.
+- Stores trips as relationships between location nodes in a graph model.
+- Supports graph algorithms such as:
+  - **PageRank** – to identify influential locations.
+  - **Breadth-First Search (BFS)** – to explore reachability and paths.
+- Uses a **tester script** to validate the end-to-end pipeline.
 
 ---
 
-
-
-\## 🛠️ Tech Stack
-
-\- \*\*Streaming:\*\* Apache Kafka
-
-\- \*\*Coordination:\*\* Zookeeper
-
-\- \*\*Graph Database:\*\* Neo4j
-
-\- \*\*Graph Analytics:\*\* Neo4j Graph Data Science (GDS)
-
-\- \*\*Orchestration:\*\* Kubernetes (Minikube)
-
-\- \*\*Language:\*\* Python
-
-\- \*\*Connector:\*\* Kafka–Neo4j Sink Connector
-
-\- \*\*Testing:\*\* Python-based automated tester
-
-
+## 🛠️ Tech Stack
+- **Streaming:** Apache Kafka  
+- **Coordination:** Zookeeper  
+- **Graph Database:** Neo4j  
+- **Graph Analytics:** Neo4j Graph Data Science (GDS)  
+- **Orchestration:** Kubernetes (Minikube)  
+- **Language:** Python  
+- **Connector:** Kafka–Neo4j Sink Connector  
+- **Testing:** Python-based automated tester  
 
 ---
 
+## 🧩 System Architecture (High-Level)
+A Python Kafka producer streams taxi trip data into a Kafka topic running on Kubernetes. A Kafka–Neo4j connector subscribes to that topic and writes each message into Neo4j as graph data (locations and trips). Once data lands in Neo4j, graph algorithms like PageRank and BFS can be executed over the constructed graph.
 
+---
 
-\## 🧩 System Architecture
+## ▶️ How to Run (High-Level)
+1. Start Minikube and ensure your Kubernetes context points to it.
+2. Deploy Zookeeper and Kafka:
+   - Apply `zookeeper-setup.yaml`.
+   - Apply `kafka-setup.yaml`.
+3. Deploy Neo4j:
+   - Use `neo4j-values.yaml` and `neo4j-service.yaml` with Helm or `kubectl` to deploy Neo4j and expose its service.
+4. Configure Kafka–Neo4j Connector:
+   - Apply `kafka-neo4j-connector.yaml` or use `step3-connector-setup.sh` to configure the sink connector that consumes from Kafka and writes to Neo4j.
+5. Run the data producer:
+   - Execute `data_producer.py` to stream taxi trip messages into Kafka.
+6. Validate the pipeline:
+   - Run `tester.py` to verify streaming, ingestion, and graph operations.
 
-```text
+> Exact commands depend on your local Minikube/Kubernetes setup and connector deployment. This repository includes the YAML and script files used to orchestrate the pipeline.
 
-Kafka Producer (Python)
-
-&nbsp;       |
-
-&nbsp;       v
-
-Kafka Topic
-
-&nbsp;       |
-
-&nbsp;       v
-
-Kafka–Neo4j Connector
-
-&nbsp;       |
-
-&nbsp;       v
-
-Neo4j Graph Database
-
-&nbsp;       |
-
-&nbsp;       v
-
-Graph Algorithms (PageRank, BFS)
-
-
-
-How to Run (High-Level)
-
-
-
-1. Start Minikube and deploy Zookeeper and Kafka
-   
-2. Deploy Neo4j using Helm values
-   
-3. Configure Kafka–Neo4j connector
-   
-4. Run the Kafka producer to stream data
-   
-5. Validate ingestion and graph analytics using the tester
-
-
-
-Detailed deployment steps and YAML configurations are included in this repository.
-
+---
